@@ -1,19 +1,30 @@
 FROM python:3.10
 
+ARG GITHUB_ACCESS_TOKEN
+ARG GITHUB_MACHINE_USER={{cookiecutter.github_machine_user}}
+ARG GITHUB_PRIVATE_ORG={{cookiecutter.private_github_org}}
+
 LABEL version="{{cookiecutter.version}}"
 LABEL author="{{cookiecutter.author}}"
 LABEL email="{{cookiecutter.email}}"
 LABEL description="{{cookiecutter.project_description}}"
 
-ENV PATH=/{{cookiecutter.project_slug}}/bin:/root/.poetry/bin:${PATH}
+ENV PYTHONPATH=/{{cookiecutter.project_slug}}:${PYTHONPATH}
+ENV PATH=/{{cookiecutter.project_slug}}/bin:/root/.local/bin:/root/.poetry/bin:${PATH}
 
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python3 - && \
+    poetry config virtualenvs.create false && \
+    poetry config repositories.git-repo https://github.com/${GITHUB_PRIVATE_ORG} &&\
+    poetry config http-basic.git-repo ${GITHUB_MACHINE_USER} ${GITHUB_ACCESS_TOKEN}
 
-COPY . /{{cookiecutter.project_slug}}
 WORKDIR /{{cookiecutter.project_slug}}
 
-# no need for virtualenv in docker
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+
+COPY pyproject.toml .
+RUN poetry install --no-interaction --no-ansi
+
+COPY . /{{cookiecutter.project_slug}}
+
+RUN poetry install --no-interaction --no-ansi
 
 CMD ["bash"]
